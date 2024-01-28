@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Invaders</title>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #000;
+      color: #FFF;
+      font-family: 'Arial', sans-serif;
+      overflow: hidden;
+    }
+
+    #gameContainer {
+      position: relative;
+    }
+
+    canvas {
+      border: 1px solid #FFF;
+    }
+
+    #gameOverScreen {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      color: #FFF;
+    }
+
+    #startButton {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #3498db;
+      color: #FFF;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div id="gameOverScreen">GAME OVER<br>Score: <span id="finalScore">0</span></div>
+    <button id="startButton">Start</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const finalScoreDisplay = document.getElementById("finalScore");
+    const startButton = document.getElementById("startButton");
+
+    const spaceshipHeight = 40;
+    const spaceshipWidth = spaceshipHeight * (2 / 3);
+    let spaceshipX = (canvas.width - spaceshipWidth) / 2;
+
+    const enemySize = 15;
+    const enemies = [];
+    const maxEnemies = 5;
+    const enemySpeed = 0.5;
+
+    let isShooting = false;
+    let bulletY = canvas.height - spaceshipHeight;
+    let score = 0;
+    let isGameOver = false;
+
+    // Nouvelle fonctionnalité : Étoiles en fond
+    const stars = [];
+    for (let i = 0; i < 100; i++) {
+      stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
+    }
+
+    document.addEventListener("keydown", moveSpaceship);
+    document.addEventListener("keydown", shoot);
+
+    function moveSpaceship(e) {
+      if (isGameOver) return;
+
+      if (e.key === "ArrowLeft" && spaceshipX > 0) {
+        spaceshipX -= 10;
+      } else if (e.key === "ArrowRight" && spaceshipX < canvas.width - spaceshipWidth) {
+        spaceshipX += 10;
+      }
+    }
+
+    function shoot(e) {
+      if (isGameOver) return;
+
+      if (e.key === " ") {
+        isShooting = true;
+        bulletY = canvas.height - spaceshipHeight;
+      }
+    }
+
+    function drawSpaceship() {
+      ctx.beginPath();
+      ctx.moveTo(spaceshipX, canvas.height - spaceshipHeight);
+      ctx.lineTo(spaceshipX + spaceshipWidth / 2, canvas.height - spaceshipHeight - spaceshipHeight);
+      ctx.lineTo(spaceshipX + spaceshipWidth, canvas.height - spaceshipHeight);
+      ctx.fillStyle = "#0095DD";
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawEnemies() {
+      for (let enemy of enemies) {
+        ctx.beginPath();
+        ctx.arc(enemy.x, enemy.y, enemySize, 0, Math.PI * 2);
+        ctx.fillStyle = "#FF0000";
+        ctx.fill();
+        ctx.closePath();
+      }
+    }
+
+    function drawBullet() {
+      if (isShooting) {
+        ctx.beginPath();
+        ctx.rect(spaceshipX + spaceshipWidth / 2 - 2, bulletY, 4, 10);
+        ctx.fillStyle = "#00FF00";
+        ctx.fill();
+        ctx.closePath();
+        bulletY -= 5;
+
+        for (let i = 0; i < enemies.length; i++) {
+          let enemy = enemies[i];
+          if (
+            bulletY < enemy.y + enemySize &&
+            bulletY + 10 > enemy.y &&
+            spaceshipX < enemy.x + enemySize &&
+            spaceshipX + spaceshipWidth > enemy.x
+          ) {
+            enemies.splice(i, 1);
+            isShooting = false;
+            bulletY = canvas.height - spaceshipHeight;
+            score += 10;
+            break;
+          }
+        }
+
+        if (bulletY < 0) {
+          isShooting = false;
+          bulletY = canvas.height - spaceshipHeight;
+        }
+      }
+    }
+
+    function createEnemies() {
+      if (Math.random() < 0.005 && enemies.length < maxEnemies) {
+        enemies.push({ x: Math.random() * (canvas.width - enemySize), y: 0 });
+      }
+    }
+
+    function drawStars() {
+      ctx.fillStyle = "#FFF";
+      for (let star of stars) {
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.closePath();
+      }
+    }
+
+    function drawScore() {
+      ctx.font = "16px Arial";
+      ctx.fillStyle = "#FFF";
+      ctx.fillText("Score: " + score, 10, 20);
+    }
+
+    function drawGameOverScreen() {
+      if (isGameOver) {
+        gameOverScreen.style.display = "block";
+        finalScoreDisplay.textContent = score;
+      } else {
+        gameOverScreen.style.display = "none";
+      }
+    }
+
+    function startGame() {
+      score = 0;
+      isGameOver = false;
+      enemies.length = 0;
+      gameOverScreen.style.display = "none";
+      startButton.style.display = "none";
+      setInterval(drawGame, 10);
+    }
+
+    startButton.addEventListener("click", startGame);
+
+    function drawGame() {
+      if (isGameOver) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawStars(); // Dessiner les étoiles en fond
+      drawSpaceship();
+      drawEnemies();
+      drawBullet();
+      drawScore();
+      createEnemies();
+
+      for (let enemy of enemies) {
+        enemy.y += enemySpeed;
+        if (enemy.y > canvas.height) {
+          isGameOver = true;
+          break;
+        }
+      }
+
+      drawGameOverScreen();
+    }
+  </script>
+</body>
+</html>
